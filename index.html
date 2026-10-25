@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Sistema de Visión Artificial y Machine Learning para lectura y verificación de autenticidad de patentes vehiculares chilenas y detección de adulteraciones.">
+    <title>ChilePlate Forensics — Detección de Patentes Adulteradas con IA</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="forensic-app">
+        <!-- Barra de Navegación Superior -->
+        <header class="app-header">
+            <div class="brand-group">
+                <div class="brand-badge-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        <circle cx="12" cy="11" r="3"></circle>
+                        <path d="M12 14v3"></path>
+                    </svg>
+                </div>
+                <div>
+                    <div class="brand-title-row">
+                        <h1>ChilePlate <span>AI Forensics</span></h1>
+                        <span class="norm-badge">Normativa Registro Civil Chile — Actualizado Julio 2026 (D.S. Nº 53)</span>
+                    </div>
+                    <p class="brand-subtitle">Inspección de Placas Patente Única (PPU) • Detección de Clonación y Adulteración con ML</p>
+                </div>
+            </div>
+
+            <div class="header-status">
+                <button class="btn btn-sm btn-outline cvat-nav-btn" id="openCvatModalBtn" title="Ver guía completa de anotación con CVAT y entrenamiento de Machine Learning">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                    <span>Guía CVAT & ML</span>
+                </button>
+                <div class="status-indicator online">
+                    <span class="pulse-dot"></span>
+                    <span>Motor ML Activo</span>
+                </div>
+                <div class="db-stat-pill">
+                    <span class="stat-num" id="totalInspectionsCount">0</span>
+                    <span class="stat-label">Inspecciones</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Contenedor Principal en Cuadrícula -->
+        <main class="dashboard-grid">
+            <!-- Columna Izquierda: Entrada de Imagen & Visor Forense -->
+            <section class="viewport-panel">
+                <!-- Barra de selección de fuente de imagen -->
+                <div class="source-selector-bar">
+                    <button class="source-tab active" data-tab="presets">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                        Muestras de Prueba
+                    </button>
+                    <button class="source-tab" data-tab="upload">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                        Subir Foto / Archivo
+                    </button>
+                    <button class="source-tab" data-tab="camera">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                        Cámara en Vivo
+                    </button>
+                </div>
+
+                <!-- Subpanel de Presets rápidos -->
+                <div class="tab-content active" id="tabPresets">
+                    <div class="presets-scroll" id="presetButtonsContainer">
+                        <!-- Presets inyectados por JS -->
+                    </div>
+                </div>
+
+                <!-- Subpanel para Subir Archivo -->
+                <div class="tab-content" id="tabUpload">
+                    <div class="upload-dropzone" id="dropzone">
+                        <input type="file" id="fileInput" accept="image/*" hidden>
+                        <div class="dropzone-icon">📁</div>
+                        <p class="dropzone-title">Arrastra una imagen de patente o <span>haz clic para examinar</span></p>
+                        <p class="dropzone-hint">Formatos soportados: JPG, PNG, WEBP de alta resolución</p>
+                    </div>
+                </div>
+
+                <!-- Subpanel de Cámara -->
+                <div class="tab-content" id="tabCamera">
+                    <div class="camera-controls">
+                        <button class="btn btn-primary" id="startCameraBtn">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            Iniciar Cámara
+                        </button>
+                        <button class="btn btn-secondary" id="autoScanCameraBtn" disabled title="Escanear y verificar continuamente sin presionar botones">
+                            <span class="scan-live-dot" id="autoScanDot"></span>
+                            <span id="autoScanBtnText">Auto-Escaneo en Vivo</span>
+                        </button>
+                        <button class="btn btn-outline" id="captureCameraBtn" disabled>Capturar Fotograma</button>
+                        <button class="btn btn-danger" id="stopCameraBtn" disabled>Detener</button>
+                    </div>
+                    <div class="camera-view-box" id="cameraViewContainer" style="display:none;">
+                        <video id="videoFeed" autoplay playsinline></video>
+                        <div class="camera-reticle" id="cameraReticle">
+                            <span class="reticle-label" id="cameraReticleLabel">ALINEAR PATENTE AQUÍ</span>
+                        </div>
+                        <div class="camera-live-hud" id="cameraLiveHud">
+                            <span class="hud-status-badge" id="hudStatusBadge">Alinea la patente dentro del marco</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barra de Edición y Detección OCR de Patente -->
+                <div class="ocr-plate-editor-bar" id="ocrEditorBar">
+                    <div class="ocr-label-group">
+                        <span class="ocr-icon">🔤</span>
+                        <label for="detectedPlateInput">Patente Detectada:</label>
+                    </div>
+                    <div class="ocr-input-group">
+                        <input type="text" id="detectedPlateInput" class="ocr-plate-input" value="GKTL42" maxlength="7" autocomplete="off" placeholder="GKTL42">
+                        <button class="btn btn-sm btn-primary" id="applyPlateTextBtn" title="Verificar autenticidad de estos caracteres">
+                            Verificar Patente
+                        </button>
+                    </div>
+                    <span class="ocr-hint">Reconocimiento automático de caracteres. Puedes editar libremente para simular o corregir.</span>
+                </div>
+
+                <!-- Visor Interactivo Canvas Forense -->
+                <div class="canvas-forensic-wrapper">
+                    <div class="viewer-header">
+                        <span class="viewer-tag">VISOR TELEMÉTRICO DE ALTA DEFINICIÓN</span>
+                        <!-- Selector de Filtros Forenses -->
+                        <div class="filter-controls">
+                            <label>Modo de Visión:</label>
+                            <select id="forensicFilterSelect" class="forensic-select">
+                                <option value="original">Original (RGB)</option>
+                                <option value="contrast">Realce de Contraste</option>
+                                <option value="grayscale">Escala de Grises</option>
+                                <option value="binarized">Binarización Otsu</option>
+                                <option value="sobel">Detección de Bordes (Sobel)</option>
+                                <option value="heatmap">Mapa de Calor (Anomalías de Cinta)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="canvas-viewport" id="canvasViewport">
+                        <canvas id="forensicCanvas"></canvas>
+                        <!-- Capa de superposición con Bounding Box y Retículas -->
+                        <div class="scanner-overlay" id="scannerOverlay">
+                            <div class="scan-laser"></div>
+                            <div class="corner top-left"></div>
+                            <div class="corner top-right"></div>
+                            <div class="corner bottom-left"></div>
+                            <div class="corner bottom-right"></div>
+                        </div>
+                    </div>
+
+                    <!-- Métricas de procesamiento de imagen -->
+                    <div class="viewport-footer">
+                        <div class="metric-item">
+                            <span class="m-label">Resolución:</span>
+                            <span class="m-val" id="imgResMetric">-- x -- px</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="m-label">Aspect Ratio:</span>
+                            <span class="m-val" id="imgAspectMetric">--</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="m-label">Índice Contraste:</span>
+                            <span class="m-val" id="imgContrastMetric">--</span>
+                        </div>
+                        <div class="metric-item">
+                            <span class="m-label">Tiempo Inferencia:</span>
+                            <span class="m-val" id="inferenceTimeMetric">-- ms</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Columna Derecha: Resultados del Análisis & Veredicto Forense -->
+            <section class="results-panel">
+                <!-- Tarjeta de Veredicto Principal -->
+                <div class="verdict-card" id="verdictCard">
+                    <div class="verdict-header">
+                        <span class="verdict-prefix">DIAGNÓSTICO DEL SISTEMA</span>
+                        <span class="confidence-pill" id="confidencePill">Confianza: --%</span>
+                    </div>
+                    <div class="verdict-main">
+                        <div class="verdict-icon" id="verdictIcon">⏳</div>
+                        <div class="verdict-texts">
+                            <h2 class="verdict-title" id="verdictTitle">Esperando análisis...</h2>
+                            <p class="verdict-summary" id="verdictSummary">Carga una imagen o selecciona un caso de prueba para iniciar la inspección forense.</p>
+                        </div>
+                    </div>
+                    <!-- Barra de Nivel de Autenticidad -->
+                    <div class="authenticity-bar-group">
+                        <div class="bar-labels">
+                            <span>Probabilidad de Autenticidad</span>
+                            <span id="authenticityScoreText">0%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="authenticityProgress" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Desglose de la Patente Detectada -->
+                <div class="plate-breakdown-card">
+                    <div class="plate-display-box">
+                        <div class="plate-flag-strip">
+                            <span class="chile-flag-icon">🇨🇱</span>
+                            <span class="chile-plate-country">CHILE</span>
+                        </div>
+                        <div class="plate-text-render" id="plateTextRender">-- · -- · --</div>
+                        <div class="plate-seal-badge" id="plateSealIndicator" title="Sello Oficial del Registro Civil">
+                            <span>🛡️ SELLO OFICIAL</span>
+                        </div>
+                    </div>
+
+                    <div class="plate-specs-grid">
+                        <div class="spec-box">
+                            <span class="s-label">Formato Legal:</span>
+                            <span class="s-val" id="plateFormatSpec">--</span>
+                        </div>
+                        <div class="spec-box">
+                            <span class="s-label">Dígito Verificador (DV):</span>
+                            <span class="s-val" id="plateDvSpec">--</span>
+                        </div>
+                        <div class="spec-box">
+                            <span class="s-label">Regla de Vocales:</span>
+                            <span class="s-val" id="plateVowelsSpec">--</span>
+                        </div>
+                        <div class="spec-box">
+                            <span class="s-label">Tipo de Tipografía:</span>
+                            <span class="s-val" id="plateFontSpec">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checklist de Criterios Forenses -->
+                <div class="forensic-audit-card">
+                    <h3 class="card-title">Matriz de Verificación Multicriterio</h3>
+                    <div class="criteria-list" id="criteriaList">
+                        <!-- Criterios inyectados dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Detalle de Anomalías y Falsificaciones -->
+                <div class="anomalies-card" id="anomaliesCard">
+                    <h3 class="card-title">
+                        <span>Anomalías y Evidencias de Adulteración</span>
+                        <span class="anomaly-counter-badge" id="anomalyCountBadge">0 detectadas</span>
+                    </h3>
+                    <ul class="anomalies-list" id="anomaliesList">
+                        <li class="empty-state">No se han registrado anomalías.</li>
+                    </ul>
+                </div>
+
+                <!-- Acciones del Reporte -->
+                <div class="report-actions-row">
+                    <button class="btn btn-secondary" id="reAnalyzeBtn" title="Reanalizar con nuevos parámetros">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+                        Re-inspeccionar
+                    </button>
+                    <button class="btn btn-outline" id="exportReportBtn" title="Exportar reporte forense en JSON">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Descargar Reporte JSON
+                    </button>
+                    <button class="btn btn-primary" id="printReportBtn" title="Generar versión imprimible para acta pericial">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                        Imprimir Dictamen
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- Historial y Registro de Telemetría (Footer Panel) -->
+        <section class="history-section">
+            <div class="history-header">
+                <div class="history-title-group">
+                    <h3>Registro Histórico de Auditoría Forense</h3>
+                    <span class="history-sub">Base de datos local de inspecciones de patentes chilenas</span>
+                </div>
+                <div class="history-actions">
+                    <button class="text-btn" id="exportHistoryCsvBtn">Exportar a CSV</button>
+                    <button class="text-btn text-danger" id="clearHistoryBtn">Limpiar Auditoría</button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Fecha & Hora</th>
+                            <th>Patente</th>
+                            <th>Formato</th>
+                            <th>Diagnóstico</th>
+                            <th>Score</th>
+                            <th>Hallazgos Clave</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <!-- Filas inyectadas por JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal Educativo y de Entrenamiento con CVAT & YOLO -->
+    <div class="modal-backdrop" id="cvatModal" aria-hidden="true">
+        <div class="modal-card cvat-modal-card">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <span class="modal-icon">🏷️</span>
+                    <div>
+                        <h3>Guía de Entrenamiento con CVAT & Machine Learning</h3>
+                        <span class="modal-subtitle">Detección de Patentes Chilenas y Antifraude (Adulteradas / Clonadas)</span>
+                    </div>
+                </div>
+                <button class="modal-close-btn" id="closeCvatBtn" aria-label="Cerrar modal">&times;</button>
+            </div>
+
+            <div class="modal-body cvat-modal-body">
+                <div class="cvat-step-block">
+                    <div class="step-badge">Paso 1</div>
+                    <div class="step-info">
+                        <h4>Recolección del Dataset Chileno</h4>
+                        <p>Para entrenar una IA robusta capaz de trabajar en la calle o con cámaras de celular, necesitas recopilar entre <strong>300 y 1.000 imágenes</strong>:</p>
+                        <ul class="cvat-list">
+                            <li><strong>Patentes reales auténticas:</strong> Vehículos en tránsito, distintas horas (sol directo, sombra, noche con focos), ángulos (frontal, lateral 30°).</li>
+                            <li><strong>Patentes adulteradas / trucadas:</strong> Muestras de prueba con cinta aislante negra modificando letras (ej: convertir <code>F</code> en <code>E</code>, <code>P</code> en <code>R</code>, <code>1</code> en <code>4</code>).</li>
+                            <li><strong>Patentes clonadas:</strong> Placas impresas en papel, cartón o acrílico sin troquelado ni relieve metálico.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="cvat-step-block">
+                    <div class="step-badge">Paso 2</div>
+                    <div class="step-info">
+                        <h4>Anotación en CVAT (Computer Vision Annotation Tool)</h4>
+                        <p>Entra a <a href="https://www.cvat.ai/" target="_blank" rel="noopener noreferrer" class="link-external">cvat.ai ↗</a> (gratuito) o corre CVAT con Docker localmente:</p>
+                        <ol class="cvat-list">
+                            <li>Crea una nueva <strong>Task</strong> con el nombre <code>Chilean_Plates_AntiTamper</code>.</li>
+                            <li>Define las siguientes <strong>Labels (Etiquetas)</strong> de tipo <em>Rectangle</em>:
+                                <div class="labels-pill-grid">
+                                    <span class="label-pill pill-authentic">0: plate_authentic</span>
+                                    <span class="label-pill pill-tampered">1: plate_tampered_tape</span>
+                                    <span class="label-pill pill-cloned">2: plate_cloned_replica</span>
+                                    <span class="label-pill pill-new2026">3: plate_2026_5L1D</span>
+                                    <span class="label-pill pill-new2026">4: plate_moto_2026_4L1D</span>
+                                    <span class="label-pill pill-authentic">5: plate_moto_3L2D</span>
+                                </div>
+                            </li>
+                            <li>Sube tus imágenes y dibuja el rectángulo ajustado al borde de cada placa patente.</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="cvat-step-block">
+                    <div class="step-badge">Paso 3</div>
+                    <div class="step-info">
+                        <h4>Exportar Dataset en Formato YOLOv8</h4>
+                        <p>En el menú de tu tarea en CVAT, haz clic en <strong>Export Task Dataset</strong> y selecciona el formato <strong>YOLO 1.1 (YOLOv8 Detection)</strong>.</p>
+                        <p class="cvat-hint">CVAT generará un archivo <code>.zip</code> con las imágenes y archivos <code>.txt</code> donde cada línea contiene: <code>&lt;class_id&gt; &lt;x_center&gt; &lt;y_center&gt; &lt;width&gt; &lt;height&gt;</code> (normalizados de 0 a 1).</p>
+                    </div>
+                </div>
+
+                <div class="cvat-step-block">
+                    <div class="step-badge">Paso 4</div>
+                    <div class="step-info">
+                        <h4>Entrenamiento del Modelo con YOLOv8 en Python</h4>
+                        <p>Copia y ejecuta este script en Google Colab con GPU gratuita:</p>
+                        <div class="code-snippet-box">
+                            <pre><code># 1. Instalar Ultralytics
+!pip install -q ultralytics
+
+from ultralytics import YOLO
+
+# 2. Cargar modelo base ultraliviano para visión en tiempo real (60+ FPS)
+model = YOLO('yolov8n.pt')
+
+# 3. Entrenar con el dataset exportado de CVAT
+model.train(
+    data='dataset.yaml', 
+    epochs=60, 
+    imgsz=640, 
+    batch=16,
+    plots=True
+)
+
+# 4. Validar y exportar a formato web ONNX o TensorFlow.js
+model.val()
+model.export(format='onnx')</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer cvat-modal-footer">
+                <button class="btn btn-outline" id="exportYoloAnnotationBtn">
+                    <span>💾</span>
+                    <span>Descargar Fotograma Actual para CVAT/YOLO</span>
+                </button>
+                <button class="btn btn-primary" id="closeCvatModalFooterBtn">Cerrar Guía</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Scripts de la aplicación -->
+    <script src="sample-plates.js"></script>
+    <script src="forensic-engine.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
